@@ -5,18 +5,35 @@ using System.Threading.Tasks;
 
 public class WriteFile 
 {
-    public async void Write(string dataPath, string text)
+    private SemaphoreSlim _semaphore;
+    private string _dataPath;
+
+    public WriteFile(string dataPath, SemaphoreSlim semaphore)
     {
+        _dataPath = dataPath;
+        _semaphore = semaphore;
+    }
+
+    public void Write(string text)
+    {
+        _semaphore.Wait();
+
         StreamWriter writer;
 
-        if (!File.Exists(dataPath))
+        if (!File.Exists(_dataPath))
         {
-            writer = new StreamWriter(dataPath);
+            writer = new StreamWriter(_dataPath);
             writer.Close();
         }
 
-        writer = new StreamWriter(dataPath, true);
-        await writer.WriteLineAsync(text);
-        writer.Close();
+        Task task = Task.Run(async () => {
+
+            writer = new StreamWriter(_dataPath, true);
+            await writer.WriteLineAsync(text);
+            writer.Close();
+
+        });
+
+        _semaphore.Release();
     }
 }

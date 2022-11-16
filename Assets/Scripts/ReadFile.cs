@@ -1,30 +1,34 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 public class ReadFile
 {
-    private bool isRead;
+    private string _dataPath;
+    private CancellationToken _token;
+    private SemaphoreSlim _semaphore;
 
-    public void StartRead(string dataPath)
+    public ReadFile(string dataPath, CancellationToken token, SemaphoreSlim semaphore)
     {
-        isRead = true;
-        Read(dataPath);
+        _dataPath = dataPath;
+        _token = token;
+        _semaphore = semaphore;
     }
 
-    public void StopRead()
+    public async void Read()
     {
-        isRead = false;
-    }
-
-    private async void Read(string dataPath)
-    {
-        while (isRead)
+        while (!_token.IsCancellationRequested)
         {
-            if (File.Exists(dataPath))
+            if (File.Exists(_dataPath))
             {
-                StreamReader reader = new StreamReader(dataPath);
+                _semaphore.Wait();
+
+                StreamReader reader = new StreamReader(_dataPath);
                 UnityEngine.Debug.Log(reader.ReadToEnd());
                 reader.Close();
+
+                _semaphore.Release();
             }
 
             await Task.Delay(20000);

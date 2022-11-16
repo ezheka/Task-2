@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -11,6 +13,12 @@ public class Controller : MonoBehaviour
     private ReadFile readFile;
     private WriteFile writeFile;
 
+    CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
+    CancellationToken _tokenRead;
+
+    private SemaphoreSlim semaphore = new SemaphoreSlim(1);
+
+
     private void Start()
     {
         if (uiController == null)
@@ -18,20 +26,21 @@ public class Controller : MonoBehaviour
 
         uiController.SetFileController(this);
 
-        playerDataPath = "Assets/Resources/Data.txt";
+        playerDataPath = Path.Combine("Assets/", "Resources/", "Data.txt");
 
-        readFile = new ReadFile();
-        readFile.StartRead(playerDataPath);
+        _tokenRead = _cancellationTokenSource.Token;
+        readFile = new ReadFile(playerDataPath, _tokenRead, semaphore);
+        Task.Run(readFile.Read);
     }
 
     public void WriteFile(string text)
     {
-        writeFile = new WriteFile();
-        writeFile.Write(playerDataPath, text);      
+        writeFile = new WriteFile(playerDataPath, semaphore);
+        writeFile.Write(text);      
     }
 
     private void OnApplicationQuit()
     {
-        readFile.StopRead();
+        _cancellationTokenSource.Cancel();
     }
 }
